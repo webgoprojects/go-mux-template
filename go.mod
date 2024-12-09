@@ -1,4 +1,4 @@
-module github.com/linesmerrill/go-mux-template
+module github.com/webgoprojects/go-mux-template
 
 go 1.22.3
 
