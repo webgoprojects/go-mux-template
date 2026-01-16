@@ -5,6 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+
+	"go-mux-template/pkg/logger"
+
+	"go.uber.org/zap"
 )
 
 var templates *template.Template
@@ -25,15 +29,33 @@ func init() {
 }
 
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
-        templates.ExecuteTemplate(w, "base", map[string]interface{}{
-                "Title": "Home Page",
-                "Content": "This is the home page.",
-        })
+	logger.Logger.Info("Home handler called",
+		zap.String("method", r.Method),
+		zap.String("path", r.URL.Path),
+		zap.String("remote_addr", r.RemoteAddr),
+	)
+
+	if err := templates.ExecuteTemplate(w, "base", map[string]interface{}{
+		"Title":   "Home Page",
+		"Content": "This is the home page.",
+	}); err != nil {
+		logger.Logger.Error("Failed to execute template", zap.Error(err))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
 func AboutHandler(w http.ResponseWriter, r *http.Request) {
-        templates.ExecuteTemplate(w, "base", map[string]interface{}{
-                "Title": "About Page",
-                "Content": "This is the about page.",
-        })
+	logger.Logger.Info("About handler called",
+		zap.String("method", r.Method),
+		zap.String("path", r.URL.Path),
+		zap.String("remote_addr", r.RemoteAddr),
+	)
+
+	if err := templates.ExecuteTemplate(w, "base", map[string]interface{}{
+		"Title":   "About Page",
+		"Content": "This is the about page.",
+	}); err != nil {
+		logger.Logger.Error("Failed to execute template", zap.Error(err))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }

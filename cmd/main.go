@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,18 +9,30 @@ import (
 	"syscall"
 	"time"
 
+	"go-mux-template/pkg/config"
 	"go-mux-template/pkg/handlers"
+	"go-mux-template/pkg/logger"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 func main() {
+	// Load configuration from environment variables
+	cfg := config.Load()
+
+	// Initialize structured logger with config
+	if err := logger.Init(cfg.LogLevel); err != nil {
+		panic("Failed to initialize logger: " + err.Error())
+	}
+	defer logger.Sync()
+
 	r := mux.NewRouter()
 
 	// Get the base directory (assuming we run from project root)
 	baseDir, err := os.Getwd()
 	if err != nil {
-		log.Fatal("Failed to get working directory:", err)
+		logger.Logger.Fatal("Failed to get working directory", zap.Error(err))
 	}
 
 	// Define routes and handlers
@@ -35,18 +46,22 @@ func main() {
 
 	// Create HTTP server with timeouts
 	srv := &http.Server{
-		Addr:         ":8080",
+		Addr:         ":" + cfg.Port,
 		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  time.Duration(cfg.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(cfg.WriteTimeout) * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
 	// Start server in a goroutine
 	go func() {
-		log.Println("Server starting on :8080")
+		logger.Logger.Info("Server starting",
+			zap.String("port", cfg.Port),
+			zap.String("environment", cfg.Environment),
+			zap.String("log_level", cfg.LogLevel),
+		)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Server failed to start:", err)
+			logger.Logger.Fatal("Server failed to start", zap.Error(err))
 		}
 	}()
 
@@ -55,15 +70,15 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Server shutting down...")
+	logger.Logger.Info("Server shutting down...")
 
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
+		logger.Logger.Fatal("Server forced to shutdown", zap.Error(err))
 	}
 
-	log.Println("Server exited")
+	logger.Logger.Info("Server exited")
 }
