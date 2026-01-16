@@ -1,31 +1,40 @@
 package main
 
 import (
-        "net/http"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
 
-        "github.com/gorilla/mux"
+	"go-mux-template/pkg/config"
+	"go-mux-template/pkg/handlers"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
-        r := mux.NewRouter()
+	// Load configuration from environment variables
+	cfg := config.Load()
 
-        // Define routes and handlers
-        r.HandleFunc("/", homeHandler)
-        r.HandleFunc("/about", aboutHandler)
+	r := mux.NewRouter()
 
-        // Serve static files
-        r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+	// Get the base directory (assuming we run from project root)
+	baseDir, err := os.Getwd()
+	if err != nil {
+		log.Fatal("Failed to get working directory:", err)
+	}
 
-        // Start the server
-        http.ListenAndServe(":8080", r)
-}
+	// Define routes and handlers
+	r.HandleFunc("/", handlers.HomeHandler)
+	r.HandleFunc("/about", handlers.AboutHandler)
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-        // Render the index.html template
-        // ...
-}
+	// Serve static files
+	staticDir := filepath.Join(baseDir, "static")
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-        // Render the about.html template
-        // ...
+	// Start the server
+	log.Printf("Server starting on :%s (environment: %s)", cfg.Port, cfg.Environment)
+	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
+		log.Fatal("Server failed to start:", err)
+	}
 }
