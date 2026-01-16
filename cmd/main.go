@@ -1,31 +1,43 @@
 package main
 
 import (
-        "net/http"
+	"net/http"
+	"os"
+	"path/filepath"
 
-        "github.com/gorilla/mux"
+	"go-mux-template/pkg/handlers"
+	"go-mux-template/pkg/logger"
+
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 func main() {
-        r := mux.NewRouter()
+	// Initialize structured logger
+	if err := logger.Init("info"); err != nil {
+		panic("Failed to initialize logger: " + err.Error())
+	}
+	defer logger.Sync()
 
-        // Define routes and handlers
-        r.HandleFunc("/", homeHandler)
-        r.HandleFunc("/about", aboutHandler)
+	r := mux.NewRouter()
 
-        // Serve static files
-        r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+	// Get the base directory (assuming we run from project root)
+	baseDir, err := os.Getwd()
+	if err != nil {
+		logger.Logger.Fatal("Failed to get working directory", zap.Error(err))
+	}
 
-        // Start the server
-        http.ListenAndServe(":8080", r)
-}
+	// Define routes and handlers
+	r.HandleFunc("/", handlers.HomeHandler)
+	r.HandleFunc("/about", handlers.AboutHandler)
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-        // Render the index.html template
-        // ...
-}
+	// Serve static files
+	staticDir := filepath.Join(baseDir, "static")
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-        // Render the about.html template
-        // ...
+	// Start the server
+	logger.Logger.Info("Server starting", zap.String("port", "8080"))
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		logger.Logger.Fatal("Server failed to start", zap.Error(err))
+	}
 }
