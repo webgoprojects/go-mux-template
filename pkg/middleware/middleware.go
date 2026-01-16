@@ -2,11 +2,12 @@ package middleware
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"go-mux-template/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type contextKey string
@@ -59,13 +60,14 @@ func Logging(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		// Simple logging - can be enhanced with structured logger
-		log.Printf("[%s] %s %s %d %v",
-			requestID.(string),
-			r.Method,
-			r.URL.Path,
-			wrapped.statusCode,
-			duration,
+		// Structured logging
+		logger.Logger.Info("HTTP request",
+			zap.String("method", r.Method),
+			zap.String("path", r.URL.Path),
+			zap.Int("status", wrapped.statusCode),
+			zap.Duration("duration", duration),
+			zap.String("request_id", requestID.(string)),
+			zap.String("remote_addr", r.RemoteAddr),
 		)
 	})
 }

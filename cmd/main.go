@@ -1,18 +1,29 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 
+	"go-mux-template/pkg/config"
 	"go-mux-template/pkg/handlers"
+	"go-mux-template/pkg/logger"
 	"go-mux-template/pkg/middleware"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 func main() {
+	// Load configuration from environment variables
+	cfg := config.Load()
+
+	// Initialize structured logger with config
+	if err := logger.Init(cfg.LogLevel); err != nil {
+		panic("Failed to initialize logger: " + err.Error())
+	}
+	defer logger.Sync()
+
 	r := mux.NewRouter()
 
 	// Apply middleware (order matters: RequestID -> CORS -> Logging)
@@ -23,7 +34,7 @@ func main() {
 	// Get the base directory (assuming we run from project root)
 	baseDir, err := os.Getwd()
 	if err != nil {
-		log.Fatal("Failed to get working directory:", err)
+		logger.Logger.Fatal("Failed to get working directory", zap.Error(err))
 	}
 
 	// Define routes and handlers
@@ -35,8 +46,11 @@ func main() {
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
 	// Start the server
-	log.Println("Server starting on :8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		log.Fatal("Server failed to start:", err)
+	logger.Logger.Info("Server starting",
+		zap.String("port", cfg.Port),
+		zap.String("environment", cfg.Environment),
+	)
+	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
+		logger.Logger.Fatal("Server failed to start", zap.Error(err))
 	}
 }
