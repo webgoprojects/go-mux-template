@@ -1,31 +1,42 @@
 package main
 
 import (
-        "net/http"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
 
-        "github.com/gorilla/mux"
+	"go-mux-template/pkg/handlers"
+	"go-mux-template/pkg/middleware"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
-        r := mux.NewRouter()
+	r := mux.NewRouter()
 
-        // Define routes and handlers
-        r.HandleFunc("/", homeHandler)
-        r.HandleFunc("/about", aboutHandler)
+	// Apply middleware (order matters: RequestID -> CORS -> Logging)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.CORS)
+	r.Use(middleware.Logging)
 
-        // Serve static files
-        r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+	// Get the base directory (assuming we run from project root)
+	baseDir, err := os.Getwd()
+	if err != nil {
+		log.Fatal("Failed to get working directory:", err)
+	}
 
-        // Start the server
-        http.ListenAndServe(":8080", r)
-}
+	// Define routes and handlers
+	r.HandleFunc("/", handlers.HomeHandler)
+	r.HandleFunc("/about", handlers.AboutHandler)
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-        // Render the index.html template
-        // ...
-}
+	// Serve static files
+	staticDir := filepath.Join(baseDir, "static")
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-        // Render the about.html template
-        // ...
+	// Start the server
+	log.Println("Server starting on :8080")
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		log.Fatal("Server failed to start:", err)
+	}
 }
