@@ -1,5 +1,5 @@
-module github.com/webgoprojects/go-mux-template
+module go-mux-template
 
-go 1.22.3
+go 1.21
 
 require github.com/gorilla/mux v1.8.1
