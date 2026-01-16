@@ -1,23 +1,30 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"go-mux-template/pkg/handlers"
+	"go-mux-template/pkg/logger"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 func main() {
+	// Initialize structured logger
+	if err := logger.Init("info"); err != nil {
+		panic("Failed to initialize logger: " + err.Error())
+	}
+	defer logger.Sync()
+
 	r := mux.NewRouter()
 
 	// Get the base directory (assuming we run from project root)
 	baseDir, err := os.Getwd()
 	if err != nil {
-		log.Fatal("Failed to get working directory:", err)
+		logger.Logger.Fatal("Failed to get working directory", zap.Error(err))
 	}
 
 	// Define routes and handlers
@@ -29,8 +36,8 @@ func main() {
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
 	// Start the server
-	log.Println("Server starting on :8080")
+	logger.Logger.Info("Server starting", zap.String("port", "8080"))
 	if err := http.ListenAndServe(":8080", r); err != nil {
-		log.Fatal("Server failed to start:", err)
+		logger.Logger.Fatal("Server failed to start", zap.Error(err))
 	}
 }
