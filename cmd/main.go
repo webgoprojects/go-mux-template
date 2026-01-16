@@ -1,31 +1,56 @@
 package main
 
 import (
-        "net/http"
+	"net/http"
+	"os"
+	"path/filepath"
 
-        "github.com/gorilla/mux"
+	"go-mux-template/pkg/config"
+	"go-mux-template/pkg/handlers"
+	"go-mux-template/pkg/logger"
+	"go-mux-template/pkg/middleware"
+
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 func main() {
-        r := mux.NewRouter()
+	// Load configuration from environment variables
+	cfg := config.Load()
 
-        // Define routes and handlers
-        r.HandleFunc("/", homeHandler)
-        r.HandleFunc("/about", aboutHandler)
+	// Initialize structured logger with config
+	if err := logger.Init(cfg.LogLevel); err != nil {
+		panic("Failed to initialize logger: " + err.Error())
+	}
+	defer logger.Sync()
 
-        // Serve static files
-        r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+	r := mux.NewRouter()
 
-        // Start the server
-        http.ListenAndServe(":8080", r)
-}
+	// Apply middleware (order matters: RequestID -> CORS -> Logging)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.CORS)
+	r.Use(middleware.Logging)
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-        // Render the index.html template
-        // ...
-}
+	// Get the base directory (assuming we run from project root)
+	baseDir, err := os.Getwd()
+	if err != nil {
+		logger.Logger.Fatal("Failed to get working directory", zap.Error(err))
+	}
 
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-        // Render the about.html template
-        // ...
+	// Define routes and handlers
+	r.HandleFunc("/", handlers.HomeHandler)
+	r.HandleFunc("/about", handlers.AboutHandler)
+
+	// Serve static files
+	staticDir := filepath.Join(baseDir, "static")
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
+
+	// Start the server
+	logger.Logger.Info("Server starting",
+		zap.String("port", cfg.Port),
+		zap.String("environment", cfg.Environment),
+	)
+	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
+		logger.Logger.Fatal("Server failed to start", zap.Error(err))
+	}
 }
