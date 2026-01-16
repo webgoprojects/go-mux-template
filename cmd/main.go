@@ -8,6 +8,7 @@ import (
 	"go-mux-template/pkg/config"
 	"go-mux-template/pkg/handlers"
 	"go-mux-template/pkg/logger"
+	"go-mux-template/pkg/middleware"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -24,6 +25,11 @@ func main() {
 	defer logger.Sync()
 
 	r := mux.NewRouter()
+
+	// Apply middleware (order matters: RequestID -> CORS -> Logging)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.CORS)
+	r.Use(middleware.Logging)
 
 	// Get the base directory (assuming we run from project root)
 	baseDir, err := os.Getwd()
