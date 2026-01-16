@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"go-mux-template/pkg/config"
 	"go-mux-template/pkg/handlers"
 	"go-mux-template/pkg/logger"
 
@@ -13,8 +14,11 @@ import (
 )
 
 func main() {
-	// Initialize structured logger
-	if err := logger.Init("info"); err != nil {
+	// Load configuration from environment variables
+	cfg := config.Load()
+
+	// Initialize structured logger with config
+	if err := logger.Init(cfg.LogLevel); err != nil {
 		panic("Failed to initialize logger: " + err.Error())
 	}
 	defer logger.Sync()
@@ -36,8 +40,11 @@ func main() {
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
 	// Start the server
-	logger.Logger.Info("Server starting", zap.String("port", "8080"))
-	if err := http.ListenAndServe(":8080", r); err != nil {
+	logger.Logger.Info("Server starting",
+		zap.String("port", cfg.Port),
+		zap.String("environment", cfg.Environment),
+	)
+	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
 		logger.Logger.Fatal("Server failed to start", zap.Error(err))
 	}
 }
