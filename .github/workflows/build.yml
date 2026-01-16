@@ -1,0 +1,37 @@
+name: Go build
+
+on:
+  push:
+    # adjust branch name if your default branch is not `main`
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          # use '1.x' to pick a recent Go 1.x; replace with a specific version (e.g. '1.21') if desired
+          go-version: "1.x"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ${{ runner.workspace }}/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Print Go version
+        run: go version
+
+      - name: Build
+        run: go build ./...
